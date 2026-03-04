@@ -1,0 +1,6 @@
+conda create --name mv-smpl-fitting python=3.8.2
+conda activate mv-smpl-fitting
+
+conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+pip install -r requirements.txt
+

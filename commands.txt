@@ -1,0 +1,6 @@
+### VISUALIZE KEYPOINTS
+
+python visualize_keypoints.py \
+    --keypoint_folder data/keypoints_test_data/keypoints \
+    --image_folder data/keypoints_test_data/raw_images \
+    --output_folder data/keypoints_test_data/keypoint_overlays
