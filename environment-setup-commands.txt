@@ -1,6 +1,9 @@
 conda create --name mv-smpl-fitting python=3.8.2
 conda activate mv-smpl-fitting
 
-conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+### Install compatible torch with cuda 11.8 that is best for RTX A6000 Ampere
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+### Install remaining requirements
 pip install -r requirements.txt
 
