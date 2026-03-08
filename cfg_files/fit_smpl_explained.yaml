@@ -1,0 +1,187 @@
+# Self-explained config for MvSMPLfitting
+# This file keeps the same runtime values as cfg_files/fit_smpl.yaml.
+# It adds comments explaining what each key does and where it is consumed.
+#
+# Main flow:
+#   cmd_parser.py -> init.py -> non_linear_solver.py -> utils.save_results()
+
+# -----------------------------------------------------------------------------
+# DATA + CAMERA
+# -----------------------------------------------------------------------------
+# Root input folder used by offline dataset loader.
+# Consumed in: code/utils/data_parser.py (create_dataset -> FittingData)
+data_folder: "data"
+
+# Camera parameter text file (intrinsics/extrinsics).
+# Consumed in: code/init.py (load_camera_para)
+cam_param: "data/3DOH50K_Parameters.txt"
+
+# Use keypoint confidence values as per-joint weights in loss.
+# Consumed in: code/utils/non_linear_solver.py
+use_joints_conf: true
+
+# Enable collision/interpenetration loss term.
+# Consumed in: code/utils/non_linear_solver.py (coll_loss_weights used only if true)
+interpenetration: false
+
+# Sequence mode: initialize next frame from previous frame result.
+# Consumed in: code/main.py and code/utils/non_linear_solver.py
+is_seq: false
+
+# Enable interactive manual adjustment workflow (OpenCV windows + second optimization pass).
+# Consumed in: code/utils/non_linear_solver.py and code/utils/utils.py
+# Requires GUI/display (xvfb on headless servers).
+adjustment: false
+
+# -----------------------------------------------------------------------------
+# OUTPUT
+# -----------------------------------------------------------------------------
+# Root output directory. init.py creates subfolders inside it.
+output_folder: "output"
+
+# Subfolder under output_folder for result pickle files.
+result_folder: "results"
+
+# Show optimization visualization while fitting.
+# Consumed by FittingMonitor visualize path.
+visualize: false
+
+# Print interactive progress/timing info during optimization.
+interactive: true
+
+# Save .obj meshes at the end.
+save_meshes: true
+
+# Save rendered overlay images at the end.
+# Requires pyrender context (use xvfb-run remotely).
+save_images: true
+
+# -----------------------------------------------------------------------------
+# DEVICE
+# -----------------------------------------------------------------------------
+# Use CUDA. init.py exits if true but no GPU is available.
+use_cuda: true
+
+# -----------------------------------------------------------------------------
+# ANNOTATION / SUPERVISION
+# -----------------------------------------------------------------------------
+# Use 3D joints if present in keypoint jsons.
+use_3d: false
+
+# Whether hip joints are used for supervision/weights in relevant branches.
+use_hip: true
+
+# Dataset implementation key.
+# Supported in this repo path: offline.
+dataset: "offline"
+
+# -----------------------------------------------------------------------------
+# MODEL
+# -----------------------------------------------------------------------------
+# Folder containing SMPL model files.
+model_folder: "models"
+
+# Body model variant:
+#   smpl / smpllsp / smplx
+# Current: smpllsp (neutral-only assert in init.py)
+model_type: "smpllsp"
+
+# Tensor dtype used across model/optimizer.
+float_dtype: "float32"
+
+# Gender model selection.
+# Note: smpllsp path enforces neutral in code/init.py.
+gender: "neutral"
+
+# -----------------------------------------------------------------------------
+# PRIORS / LATENT POSE
+# -----------------------------------------------------------------------------
+# Use VPoser latent embedding for body pose.
+# Consumed in init.py + non_linear_solver.py + save_results().
+use_vposer: true
+
+# VPoser/prior checkpoint folder.
+prior_folder: "priors"
+
+# Body pose prior type passed into create_prior().
+body_prior_type: "l2"
+
+# -----------------------------------------------------------------------------
+# MULTI-STAGE WEIGHT SCHEDULE
+# IMPORTANT: all arrays below must have the same length.
+# In this config they are all length 4 (4 optimization stages).
+# -----------------------------------------------------------------------------
+# Data term weights (2D/3D keypoint reprojection fitting).
+data_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+
+# Pose prior regularization weights per stage.
+body_pose_prior_weights:
+  - 4.04e2
+  - 4.04e2
+  - 57.4e0
+  - 4.78e0
+
+# Shape regularization weights per stage.
+shape_weights:
+  - 1.0e2
+  - 5.0e1
+  - 1.0e1
+  - 0.5e1
+
+# Collision loss weights per stage (used only if interpenetration=true).
+coll_loss_weights:
+  - 0.0
+  - 0.0
+  - 1000.0
+  - 4500.0
+
+# -----------------------------------------------------------------------------
+# OPTIMIZATION
+# -----------------------------------------------------------------------------
+# Robustifier parameter for fitting loss (GMoF rho).
+rho: 100
+
+# Optimizer backend from code/optimizers/optim_factory.py.
+# lbfgsls is the project's common choice.
+optim_type: "lbfgsls"
+
+# Early-stop thresholds used in FittingMonitor:
+#   ftol: relative loss change stop
+#   gtol: gradient magnitude stop
+ftol: 1e-9
+gtol: 1e-9
+
+# Optimizer learning rate.
+lr: 1.0
+
+# Maximum iterations per stage.
+maxiters: 30
+
+# -----------------------------------------------------------------------------
+# FIXED PARAMS (OPTIONAL CONSTRAINTS)
+# -----------------------------------------------------------------------------
+# If true, keep scale fixed to `scale`; otherwise estimate scale.
+fix_scale: false
+
+# Fixed scale value used only when fix_scale=true.
+scale: 1000.
+
+# If true, keep shape fixed to provided `shape` vector.
+fix_shape: false
+
+# Fixed SMPL shape coefficients (betas), used only when fix_shape=true.
+shape:
+  - 2.39806
+  - 0.678491
+  - 1.38193
+  - -0.966748
+  - -1.29383
+  - -0.795755
+  - -0.303195
+  - -1.1032
+  - -0.197056
+  - -0.102728
