@@ -58,6 +58,7 @@ gloablOrientAxis = 0
 gloablTranAxis = 0
 gimg = {}
 
+
 def change(image_path, keyps):
     global imgs, img_dir, mouse_list
     for v in range(len(image_path)):
@@ -66,7 +67,7 @@ def change(image_path, keyps):
             view = img_dir.split('/')[-2]
         else:
             view = img_dir.split('\\')[-2]
-        global keypoints,keypoint
+        global keypoints, keypoint
         while True:
             imgs = cv2.imread(img_dir)
 
@@ -97,7 +98,8 @@ def change(image_path, keyps):
         mouse_list = []
         cv2.destroyAllWindows()
 
-def result2mesh(result,setting,use_vposer=True):
+
+def result2mesh(result, setting, use_vposer=True):
     vposer = setting['vposer']
     model = setting['model']
     if use_vposer:
@@ -118,18 +120,19 @@ def result2mesh(result,setting,use_vposer=True):
             result['body_pose'][:, 57:] = 0.
         pose = np.hstack((result['global_orient'], result['body_pose']))
     model_output = model(
-        global_orient=torch.tensor(pose[:,:3],device=setting['device']), 
-        transl=torch.tensor(result['transl'],device=setting['device']),
-        return_verts=True, 
-        body_pose=torch.tensor(pose[:,3:],device=setting['device']), 
-        betas=torch.tensor(result['betas'],device=setting['device']))
+        global_orient=torch.tensor(pose[:, :3], device=setting['device']),
+        transl=torch.tensor(result['transl'], device=setting['device']),
+        return_verts=True,
+        body_pose=torch.tensor(pose[:, 3:], device=setting['device']),
+        betas=torch.tensor(result['betas'], device=setting['device']))
     body_joints = model_output.joints
     verts = model_output.vertices
     return verts, body_joints, model.faces
 
+
 def changeNew(image_path, keyps, results, setting):
     global imgs, img_dir, mouse_list
-    verts, joints, faces = result2mesh(results,setting,setting['use_vposer'])
+    verts, joints, faces = result2mesh(results, setting, setting['use_vposer'])
     verts = verts.squeeze().detach().cpu().numpy()
     for v in range(len(image_path)):
         img_dir = image_path[v]
@@ -137,7 +140,7 @@ def changeNew(image_path, keyps, results, setting):
             view = img_dir.split('/')[-2]
         else:
             view = img_dir.split('\\')[-2]
-        global keypoints,keypoint
+        global keypoints, keypoint
 
         imgs = cv2.imread(img_dir)
         ratiox = 800/int(imgs.shape[0])
@@ -151,13 +154,16 @@ def changeNew(image_path, keyps, results, setting):
             imgs.shape[1]*ratio), int(imgs.shape[0]*ratio))
         cv2.setMouseCallback(img_dir, points_move)
 
-        render = Renderer((imgs.shape[1],imgs.shape[0]))
+        render = Renderer((imgs.shape[1], imgs.shape[0]))
         cam = setting['cameras'][v]
         camIn = [
-                [cam.focal_length_x.detach().squeeze().cpu().numpy(),0,cam.center[0][0].detach().squeeze().cpu().numpy()],
-                [0,cam.focal_length_y.detach().squeeze().cpu().numpy(),cam.center[0][1].detach().squeeze().cpu().numpy()],
-                [0,0,1]]
-        imgs = render(verts,faces,cam.rotation.detach().cpu().squeeze().numpy(),cam.translation.detach().cpu().squeeze().numpy(),camIn,imgs,viz=False)
+                [cam.focal_length_x.detach().squeeze().cpu().numpy(), 0,
+                 cam.center[0][0].detach().squeeze().cpu().numpy()],
+                [0, cam.focal_length_y.detach().squeeze().cpu().numpy(
+                ), cam.center[0][1].detach().squeeze().cpu().numpy()],
+            [0, 0, 1]]
+        imgs = render(verts, faces, cam.rotation.detach().cpu().squeeze().numpy(
+        ), cam.translation.detach().cpu().squeeze().numpy(), camIn, imgs, viz=False)
         joints2D = cam(joints).detach().cpu().numpy().astype(np.int32)
         for p in joints2D[0]:
             imgs = cv2.circle(
@@ -169,12 +175,14 @@ def changeNew(image_path, keyps, results, setting):
             keypoints = keyps
             keypoint = keypoints[v]
             for p in keypoints[v][0]:
-                imgscopy = cv2.circle(imgscopy, (int(p[0]), int(p[1])), 3, (0, 255, 0), 10)
+                imgscopy = cv2.circle(
+                    imgscopy, (int(p[0]), int(p[1])), 3, (0, 255, 0), 10)
             if draw_move == True:
-                imgscopy = cv2.circle(imgscopy, (int(ix), int(iy)), 3, (255, 0, 0), 10)
+                imgscopy = cv2.circle(
+                    imgscopy, (int(ix), int(iy)), 3, (255, 0, 0), 10)
 
             cv2.imshow(img_dir, imgscopy)
-            
+
             for number in range(len(mouse_list)):
                 keypoints[v][0][points_index_list[number]
                                 ][0:2] = mouse_list[number]  # 保存移动后的点
@@ -184,12 +192,13 @@ def changeNew(image_path, keyps, results, setting):
         mouse_list = []
         cv2.destroyAllWindows()
 
+
 def points_move(event, x, y, flags, param):
     global draw_begin, ix, iy, draw_move, points_index_list, mouse_list, keypoints, points_index, imgs, keypoint
     ix = x
     iy = y
     if event == cv2.EVENT_LBUTTONDOWN:
-        points_index = WhichSelected(keypoint[0,:,:2], x, y)  # 确定选择的点坐标
+        points_index = WhichSelected(keypoint[0, :, :2], x, y)  # 确定选择的点坐标
         if points_index != -1:
             draw_begin = True
     if draw_begin == True:
@@ -218,6 +227,7 @@ def click_event(event, x, y, flags, param):
             flag_change_value = True
         else:
             flag_change_value = False
+
 
 def estimate_translation_from_intri(S, joints_2d, joints_conf, fx=5000., fy=5000., cx=128., cy=128.):
     num_joints = S.shape[0]
@@ -470,7 +480,7 @@ def WhichSelected(keypoints, x, y):
     dis = []
     # for i in range(len(keypoints)):
     #     dis.append(pow(x-keypoints[i][0], 2)+pow(y-keypoints[i][1], 2))
-    dis = np.linalg.norm(np.array([x,y]) - keypoints,axis=1)
+    dis = np.linalg.norm(np.array([x, y]) - keypoints, axis=1)
     points_index = np.argmin(dis)
     # mindis = min(dis)
     # points_index = -1
@@ -480,8 +490,8 @@ def WhichSelected(keypoints, x, y):
     #             points_index = i
     #             print("the index of the selected point is: ", points_index)
     #             break
-    
-    if(points_index != -1):
+
+    if (points_index != -1):
         selected_point = keypoints[points_index]
         print("the selected points is: ",
               (selected_point[0], selected_point[1]))
@@ -500,6 +510,7 @@ def index_to(points_index):
     else:
         joints_index = -1
     return joints_index
+
 
 def keyboardCall(key, init_param=None):
     global status, keyAxis, shapeDim, gloablOrientAxis, gloablTranAxis, flag_change_value, num
@@ -520,21 +531,21 @@ def keyboardCall(key, init_param=None):
             if (key == ord("w")):
                 keyAxis += 1
                 keyAxis %= 3
-                print("poseAxis:",keyAxis)
+                print("poseAxis:", keyAxis)
         else:
             if (key == ord("s")):
                 shapeDim += 1
                 shapeDim %= 10
-                print("shapeDim:",shapeDim)
+                print("shapeDim:", shapeDim)
             if (key == ord("x")):
                 gloablOrientAxis += 1
                 gloablOrientAxis %= 3
-                print("globalOrientAxis:",gloablOrientAxis)
+                print("globalOrientAxis:", gloablOrientAxis)
             if (key == ord("b")):
                 gloablTranAxis += 1
                 gloablTranAxis %= 3
-                print("gloablTranAxis:",gloablTranAxis)
-    
+                print("gloablTranAxis:", gloablTranAxis)
+
     if key == ord("r"):
         my_betas = init_param['betas'].clone()
         my_global_orient = init_param['global_orient'].clone()
@@ -542,36 +553,40 @@ def keyboardCall(key, init_param=None):
         my_body_pose = init_param['body_pose'].clone()
 
     if key == ord("a"):
-        if(my_betas[0, shapeDim] >= betas_min_value):
+        if (my_betas[0, shapeDim] >= betas_min_value):
             my_betas[0, shapeDim] = my_betas[0, shapeDim]-1
     if key == ord("d"):
-        if(my_betas[0, shapeDim] <= betas_max_value):
+        if (my_betas[0, shapeDim] <= betas_max_value):
             my_betas[0, shapeDim] = my_betas[0, shapeDim]+1
 
     if key == ord("z"):
-        if(my_global_orient[0, gloablOrientAxis] >= orient_min_value[0, gloablOrientAxis]):
-            my_global_orient[0, gloablOrientAxis] = my_global_orient[0, gloablOrientAxis]-0.05
+        if (my_global_orient[0, gloablOrientAxis] >= orient_min_value[0, gloablOrientAxis]):
+            my_global_orient[0, gloablOrientAxis] = my_global_orient[0,
+                                                                     gloablOrientAxis]-0.05
     if key == ord("c"):
-        if(my_global_orient[0, gloablOrientAxis] <= orient_max_value[0, gloablOrientAxis]):
-            my_global_orient[0, gloablOrientAxis] = my_global_orient[0, gloablOrientAxis]+0.05
+        if (my_global_orient[0, gloablOrientAxis] <= orient_max_value[0, gloablOrientAxis]):
+            my_global_orient[0, gloablOrientAxis] = my_global_orient[0,
+                                                                     gloablOrientAxis]+0.05
 
     if key == ord("v"):
-        if(my_transl[0, gloablTranAxis] >= tranl_min_value[0, gloablTranAxis]):
+        if (my_transl[0, gloablTranAxis] >= tranl_min_value[0, gloablTranAxis]):
             my_transl[0, gloablTranAxis] = my_transl[0, gloablTranAxis]-0.05
     if key == ord("n"):
-        if(my_transl[0, gloablTranAxis] <= tranl_max_value[0, gloablTranAxis]):
+        if (my_transl[0, gloablTranAxis] <= tranl_max_value[0, gloablTranAxis]):
             my_transl[0, gloablTranAxis] = my_transl[0, gloablTranAxis]+0.05
-
 
     if flag_change_value == True:
         if key == ord("q"):
-            if(my_body_pose[0, 3*joints_index+keyAxis] >= pose_min_value[0, 3*joints_index+keyAxis]):
-                my_body_pose[0, 3*joints_index+keyAxis] = my_body_pose[0, 3*joints_index+keyAxis]-0.02
+            if (my_body_pose[0, 3*joints_index+keyAxis] >= pose_min_value[0, 3*joints_index+keyAxis]):
+                my_body_pose[0, 3*joints_index +
+                             keyAxis] = my_body_pose[0, 3*joints_index+keyAxis]-0.02
         if key == ord("e"):
-            if(my_body_pose[0, 3*joints_index+keyAxis] <= pose_max_value[0, 3*joints_index+keyAxis]):
-                my_body_pose[0, 3*joints_index+keyAxis] = my_body_pose[0, 3*joints_index+keyAxis]+0.02
+            if (my_body_pose[0, 3*joints_index+keyAxis] <= pose_max_value[0, 3*joints_index+keyAxis]):
+                my_body_pose[0, 3*joints_index +
+                             keyAxis] = my_body_pose[0, 3*joints_index+keyAxis]+0.02
 
-def project_to_img(joints, verts, faces, gt_joints, camera, image_path, renderList, keyMain,viz=False, inter=False, path=None, points_to=None, init_param=None, test=False):
+
+def project_to_img(joints, verts, faces, gt_joints, camera, image_path, renderList, keyMain, viz=False, inter=False, path=None, points_to=None, init_param=None, test=False):
 
     global d2j, img, imagepath, vertices, keypoints
     imagepath = path
@@ -585,16 +600,19 @@ def project_to_img(joints, verts, faces, gt_joints, camera, image_path, renderLi
     if inter:
         for v in range(len(image_path)):
             visualize_results(d2j[v], verts,
-                                faces, gt_joints[v], image_path[v], camera[v], renderList[v], keyMain, save=False, path=None)
+                              faces, gt_joints[v], image_path[v], camera[v], renderList[v], keyMain, save=False, path=None)
             cv2.setMouseCallback(name, click_event, np.array(d2j[v])[0])
         keyboardCall(keyMain, init_param=init_param)
     else:
         if not test:
             for v in range(len(image_path)):
-                visualize_results(d2j[v], verts,faces, gt_joints[v], image_path[v], camera[v], renderList[v], keyMain, save=True, path=path)
+                visualize_results(d2j[v], verts, faces, gt_joints[v], image_path[v],
+                                  camera[v], renderList[v], keyMain, save=True, path=path)
         else:
             for v in range(len(image_path)):
-                visualize_results(d2j[v], verts,faces, gt_joints[v], image_path[v], camera[v], renderList[v], keyMain, save=False, path=None)
+                visualize_results(d2j[v], verts, faces, gt_joints[v], image_path[v],
+                                  camera[v], renderList[v], keyMain, save=False, path=None)
+
 
 def visualize_fitting(joints, verts, faces, camera, image_path, save=False, path='./temp_vis'):
     global vis_count, a_index
@@ -651,15 +669,18 @@ def visualize_fitting(joints, verts, faces, camera, image_path, save=False, path
         #     cv2.imwrite("%s/%s_%05d.jpg" % (path, view, vis_count), img)
     vis_count += 1
 
+
 def renderMultiview(keyMain, save=False):
     if (keyMain != -1) or (save):
         pass
     pass
 
+
 def visualize_results(d2jD, vertices, faces, gt_joints, image_path, camera, renderList, keyMain, save=False, path=None):
     global view, img, a_index, joints_index, gimg
 
-    mesh = trimesh.Trimesh(vertices=vertices.detach().squeeze().cpu().numpy(),faces=faces)
+    mesh = trimesh.Trimesh(
+        vertices=vertices.detach().squeeze().cpu().numpy(), faces=faces)
 
     img_dir = image_path
     cam = camera
@@ -670,16 +691,19 @@ def visualize_results(d2jD, vertices, faces, gt_joints, image_path, camera, rend
     img = cv2.imread(img_dir)
     render = renderList
     camIn = [
-            [cam.focal_length_x.detach().squeeze().cpu().numpy(),0,cam.center[0][0].detach().squeeze().cpu().numpy()],
-            [0,cam.focal_length_y.detach().squeeze().cpu().numpy(),cam.center[0][1].detach().squeeze().cpu().numpy()],
-            [0,0,1]
+            [cam.focal_length_x.detach().squeeze().cpu().numpy(), 0, cam.center[0]
+             [0].detach().squeeze().cpu().numpy()],
+            [0, cam.focal_length_y.detach().squeeze().cpu().numpy(), cam.center[0]
+             [1].detach().squeeze().cpu().numpy()],
+            [0, 0, 1]
     ]
     global name
     name = "%s/%s.jpg" % (path, view)
-    
+
     if (keyMain != -1) or (save):
-        #img_v = cam(vertices).detach().cpu().numpy()
-        img = render(mesh.vertices,mesh.faces,cam.rotation.detach().cpu().squeeze().numpy(),cam.translation.detach().cpu().squeeze().numpy(),camIn,img,viz=False)
+        # img_v = cam(vertices).detach().cpu().numpy()
+        img = render(mesh.vertices, mesh.faces, cam.rotation.detach().cpu().squeeze(
+        ).numpy(), cam.translation.detach().cpu().squeeze().numpy(), camIn, img, viz=False)
         # for f in faces:
         #     color = 255
         #     #point = vertices.detach().cpu().numpy()[0][f]
@@ -768,9 +792,24 @@ def save_results(setting, data, result,
         result['pose'] = pose
 
     renderList = []
-    for imgPath in img_path:
-        img = cv2.imread(imgPath)
-        renderList.append(Renderer((img.shape[1],img.shape[0])))
+    needs_renderer = setting.get('adjustment', False) or save_images
+    if needs_renderer:
+        try:
+            for imgPath in img_path:
+                img = cv2.imread(imgPath)
+                if img is None:
+                    raise RuntimeError(
+                        'Failed to load image: {}'.format(imgPath))
+                renderList.append(Renderer((img.shape[1], img.shape[0])))
+        except Exception as e:
+            # In headless environments (no DISPLAY), pyrender/pyglet cannot create a context.
+            if setting.get('adjustment', False):
+                raise RuntimeError(
+                    'Interactive adjustment requires a display/OpenGL context. '
+                    'Run with a display or disable adjustment.') from e
+            save_images = False
+            print(
+                'Warning: Failed to initialize renderer, disabling save_images. Error: {}'.format(e))
 
     if setting['adjustment']:
         global my_betas, my_transl, my_global_orient, origianl_betas, original_transl, original_orient, original_pose, my_changed_body_pose, my_body_pose, key
@@ -804,14 +843,14 @@ def save_results(setting, data, result,
         curr_image_fn = osp.join(setting['img_folder'], serial, fn)
         project_to_img(
             body_joints, verts, model.faces, keypoints,
-            camera, img_path, renderList, 1,viz=False, inter=setting['adjustment'], path=curr_image_fn, points_to=points_to)
+            camera, img_path, renderList, 1, viz=False, inter=setting['adjustment'], path=curr_image_fn, points_to=points_to)
 
         init_param = {}
         init_param = {
-            'global_orient':my_global_orient.clone(),
-            'transl':my_transl.clone(),
-            'body_pose':my_body_pose.clone(),
-            'betas':my_betas.clone(),
+            'global_orient': my_global_orient.clone(),
+            'transl': my_transl.clone(),
+            'body_pose': my_body_pose.clone(),
+            'betas': my_betas.clone(),
         }
 
         while setting['adjustment']:  # 没按下退出键
@@ -823,15 +862,15 @@ def save_results(setting, data, result,
             #     verts = model_output.vertices
             project_to_img(
                 body_joints, verts, model.faces, keypoints,
-                camera, img_path, renderList, keyMain,viz=False, inter=setting['adjustment'], path=curr_image_fn, points_to=points_to,init_param=init_param)
+                camera, img_path, renderList, keyMain, viz=False, inter=setting['adjustment'], path=curr_image_fn, points_to=points_to, init_param=init_param)
             if keyMain != -1:
                 model_output = model(global_orient=my_global_orient, transl=my_transl,
-                                    return_verts=True, body_pose=my_body_pose, betas=my_betas)  # ! 主要
+                                     return_verts=True, body_pose=my_body_pose, betas=my_betas)  # ! 主要
                 body_joints = model_output.joints
                 verts = model_output.vertices
                 project_to_img(
                     body_joints, verts, model.faces, keypoints,
-                    camera, img_path, renderList, keyMain,viz=False, inter=False, path=curr_image_fn, points_to=points_to,init_param=init_param, test=True)
+                    camera, img_path, renderList, keyMain, viz=False, inter=False, path=curr_image_fn, points_to=points_to, init_param=init_param, test=True)
             if keyMain == 27:    # 退出
                 break
         cv2.destroyAllWindows()
@@ -850,7 +889,8 @@ def save_results(setting, data, result,
                 result['body_pose'][:, 18:24] = 0.
                 result['body_pose'][:, 27:33] = 0.
                 result['body_pose'][:, 57:] = 0.
-            pose = np.hstack((my_global_orient.detach().cpu().numpy(), my_body_pose.detach().cpu().numpy()))
+            pose = np.hstack((my_global_orient.detach().cpu(
+            ).numpy(), my_body_pose.detach().cpu().numpy()))
             result['pose'] = pose
         result['betas'] = my_betas.detach().cpu().numpy()
         result['transl'] = my_transl.detach().cpu().numpy()
@@ -865,11 +905,14 @@ def save_results(setting, data, result,
 
     if save_meshes or save_images:
         model_output = model(
-            global_orient=torch.tensor(result['pose'][:,:3],device=setting['device']), 
-            transl=torch.tensor(result['transl'],device=setting['device']),
-            return_verts=True, 
-            body_pose=torch.tensor(result['pose'][:,3:],device=setting['device']), 
-            betas=torch.tensor(result['betas'],device=setting['device']))  # ! 主要
+            global_orient=torch.tensor(
+                result['pose'][:, :3], device=setting['device']),
+            transl=torch.tensor(result['transl'], device=setting['device']),
+            return_verts=True,
+            body_pose=torch.tensor(
+                result['pose'][:, 3:], device=setting['device']),
+            # ! 主要
+            betas=torch.tensor(result['betas'], device=setting['device']))
         body_joints = model_output.joints
         verts = model_output.vertices
         # save image
@@ -879,15 +922,17 @@ def save_results(setting, data, result,
                 os.makedirs(curr_image_fn)
             project_to_img(
                 body_joints, verts, model.faces, keypoints,
-                camera, img_path, renderList, -1,viz=False, inter=False, path=curr_image_fn, points_to=points_to)
+                camera, img_path, renderList, -1, viz=False, inter=False, path=curr_image_fn, points_to=points_to)
 
         if save_meshes:
             curr_mesh_fn = osp.join(setting['mesh_folder'], serial, fn)
             if not osp.exists(curr_mesh_fn):
                 os.makedirs(curr_mesh_fn)
             mesh_fn = osp.join(curr_mesh_fn, '{:03d}.obj'.format(person_id))
-            out_mesh = trimesh.Trimesh(verts.detach().squeeze().cpu().numpy(), model.faces, process=False)
+            out_mesh = trimesh.Trimesh(
+                verts.detach().squeeze().cpu().numpy(), model.faces, process=False)
             out_mesh.export(mesh_fn)
+
 
 class Renderer:
     def __init__(self, resolution=(256, 256, 3), wireframe=False):
@@ -900,17 +945,18 @@ class Renderer:
             point_size=1.0)
 
         # set the scene
-        self.scene = pyrender.Scene(bg_color=[0.0, 0.0, 0.0, 0.0], ambient_light=(0.3, 0.3, 0.3))
+        self.scene = pyrender.Scene(
+            bg_color=[0.0, 0.0, 0.0, 0.0], ambient_light=(0.3, 0.3, 0.3))
         self.colors = {
             'red': [.8, .1, .1],
-            'bule': [.1, .1, .8], #[.7, .7, .6],#
+            'bule': [.1, .1, .8],  # [.7, .7, .6],#
             'green': [.1, .8, .1],
             'pink': [.7, .7, .9],
-            'neutral': [.9, .9, .8], #[.7, .7, .6],#
+            'neutral': [.9, .9, .8],  # [.7, .7, .6],#
             'capsule': [.7, .75, .5],
             'yellow': [.5, .7, .75],
         }
-        
+
     def Extrinsic_to_ModelViewMatrix(self, extri):
         extri[1] = -extri[1]
         extri[2] = -extri[2]
@@ -924,17 +970,17 @@ class Renderer:
         else:
             ratio = ratioy
 
-        cv2.namedWindow(name,0)
-        cv2.resizeWindow(name,int(im.shape[1]*ratio),int(im.shape[0]*ratio))
-        #cv2.moveWindow(name,0,0)
+        cv2.namedWindow(name, 0)
+        cv2.resizeWindow(name, int(im.shape[1]*ratio), int(im.shape[0]*ratio))
+        # cv2.moveWindow(name,0,0)
         if im.max() > 1:
             im = im/255.
-        cv2.imshow(name,im)
+        cv2.imshow(name, im)
         cv2.waitKey(0)
         if name != 'mask':
             cv2.waitKey(1)
 
-    def add_pointLight(self, intensity,center,size):
+    def add_pointLight(self, intensity, center, size):
         light_pose = np.eye(4)
         thetas = np.pi * np.array([1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0])
         phis = np.pi * np.array([0.0, 2.0 / 3.0, 4.0 / 3.0])
@@ -945,8 +991,9 @@ class Renderer:
                 xp = np.sin(theta) * np.cos(phi)
                 yp = np.sin(theta) * np.sin(phi)
                 zp = np.cos(theta)
-                light = pyrender.PointLight(color=[1.0, 1.0, 1.0], intensity=intensity*r*r)
-                light_pose[:3, 3] = center + np.array([xp,yp,zp]) * r
+                light = pyrender.PointLight(
+                    color=[1.0, 1.0, 1.0], intensity=intensity*r*r)
+                light_pose[:3, 3] = center + np.array([xp, yp, zp]) * r
                 self.scene.add(light, pose=light_pose)
 
     def add_points_light(self, intensity=1.0, bbox=None):
@@ -974,8 +1021,8 @@ class Renderer:
         light_pose[:3, 3] = np.array([2, 2, 2]) + bbox[1]
         self.scene.add(light, pose=light_pose)
 
-    def __call__(self, verts, faces, rotation, trans, intri, img=None, color=[0.5,0.5,0.5], viz=False):
-        
+    def __call__(self, verts, faces, rotation, trans, intri, img=None, color=[0.5, 0.5, 0.5], viz=False):
+
         # Add mesh
         mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
         material = pyrender.MetallicRoughnessMaterial(
@@ -983,42 +1030,46 @@ class Renderer:
             alphaMode='OPAQUE',
             baseColorFactor=(color[0], color[1], color[2], 1.0)
         )
-        
+
         rot = np.eye(4)
-        rot[:3,:3] = rotation
+        rot[:3, :3] = rotation
         mesh.apply_transform(rot)
 
-        center = (np.max(np.array(mesh.vertices),axis=0) + np.min(np.array(mesh.vertices),axis=0))/2.0
-        size = (np.max(np.array(mesh.vertices),axis=0) - np.min(np.array(mesh.vertices),axis=0))/2.0
+        center = (np.max(np.array(mesh.vertices), axis=0) +
+                  np.min(np.array(mesh.vertices), axis=0))/2.0
+        size = (np.max(np.array(mesh.vertices), axis=0) -
+                np.min(np.array(mesh.vertices), axis=0))/2.0
 
         mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
         mesh_node = self.scene.add(mesh, 'mesh')
 
         # Add cameras
-        camera = pyrender.IntrinsicsCamera(fx=intri[0][0], fy=intri[1][1], cx=intri[0][2], cy=intri[1][2], zfar=8000)
+        camera = pyrender.IntrinsicsCamera(
+            fx=intri[0][0], fy=intri[1][1], cx=intri[0][2], cy=intri[1][2], zfar=8000)
         camera_pose = np.eye(4)
         trans = trans.reshape(-1,)
         trans[0] = -trans[0]
-        camera_pose[:3,3] = trans
+        camera_pose[:3, 3] = trans
         camera_pose = self.Extrinsic_to_ModelViewMatrix(camera_pose)
         cam_node = self.scene.add(camera, pose=camera_pose)
 
-        self.add_pointLight(1.0, center,size)
+        self.add_pointLight(1.0, center, size)
 
         if self.wireframe:
             render_flags = RenderFlags.RGBA | RenderFlags.ALL_WIREFRAME
         else:
-            render_flags = RenderFlags.RGBA 
+            render_flags = RenderFlags.RGBA
 
         image, _ = self.renderer.render(self.scene, flags=render_flags)
 
         visible_weight = 1
         if img is not None:
-            valid_mask = (image[:, :, -1] > 0)[:, :,np.newaxis]
+            valid_mask = (image[:, :, -1] > 0)[:, :, np.newaxis]
             if image.shape[-1] == 4:
-                image = image[:,:,:-1]
-            
-            image = image * valid_mask * visible_weight + img * valid_mask * (1-visible_weight) + (1 - valid_mask) * img
+                image = image[:, :, :-1]
+
+            image = image * valid_mask * visible_weight + img * \
+                valid_mask * (1-visible_weight) + (1 - valid_mask) * img
 
         if viz:
             self.vis_img('img', image)
@@ -1046,7 +1097,7 @@ class Renderer:
             )
 
             rot = np.eye(4)
-            rot[:3,:3] = rotation
+            rot[:3, :3] = rotation
             mesh.apply_transform(rot)
 
             mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
@@ -1058,39 +1109,42 @@ class Renderer:
             return img
 
         mesh_bounds = np.array(mesh_bounds)
-        top = np.mean(mesh_bounds[:,0,:], axis=0)
-        bottom = np.mean(mesh_bounds[:,1,:], axis=0)
+        top = np.mean(mesh_bounds[:, 0, :], axis=0)
+        bottom = np.mean(mesh_bounds[:, 1, :], axis=0)
         pos = (top + bottom) / 2
         # Add light
-        light_nodes = self.use_raymond_lighting(15, trans=pos-np.array([0,0,3]))
+        light_nodes = self.use_raymond_lighting(
+            15, trans=pos-np.array([0, 0, 3]))
 
         # Add cameras
-        camera = pyrender.IntrinsicsCamera(fx=intri[0][0], fy=intri[1][1], cx=intri[0][2], cy=intri[1][2], zfar=8000)
+        camera = pyrender.IntrinsicsCamera(
+            fx=intri[0][0], fy=intri[1][1], cx=intri[0][2], cy=intri[1][2], zfar=8000)
         camera_pose = np.eye(4)
         trans = trans.reshape(-1,)
         trans[0] = -trans[0]
-        camera_pose[:3,3] = trans
+        camera_pose[:3, 3] = trans
         camera_pose = self.Extrinsic_to_ModelViewMatrix(camera_pose)
         cam_node = self.scene.add(camera, pose=camera_pose)
 
         if self.wireframe:
             render_flags = RenderFlags.RGBA | RenderFlags.ALL_WIREFRAME
         else:
-            render_flags = RenderFlags.RGBA 
+            render_flags = RenderFlags.RGBA
 
         image, _ = self.renderer.render(self.scene, flags=render_flags)
 
         visible_weight = 1
         if img is not None:
-            valid_mask = (image[:, :, -1] > 0)[:, :,np.newaxis]
+            valid_mask = (image[:, :, -1] > 0)[:, :, np.newaxis]
             if image.shape[-1] == 4:
-                image = image[:,:,:-1]
-            
-            image = image * valid_mask * visible_weight + img * valid_mask * (1-visible_weight) + (1 - valid_mask) * img
+                image = image[:, :, :-1]
+
+            image = image * valid_mask * visible_weight + img * \
+                valid_mask * (1-visible_weight) + (1 - valid_mask) * img
 
         if viz:
             self.vis_img('img', image)
-        
+
         for n in mesh_nodes:
             self.scene.remove_node(n)
         self.scene.remove_node(cam_node)
@@ -1119,11 +1173,11 @@ class Renderer:
             ))
         return nodes
 
-    def use_raymond_lighting(self, intensity=1.0, trans=np.array([0,0,0])):
+    def use_raymond_lighting(self, intensity=1.0, trans=np.array([0, 0, 0])):
         nodes = []
         for n in self._add_raymond_light(trans):
             n.light.intensity = intensity / 3.0
             if not self.scene.has_node(n):
-                self.scene.add_node(n)#, parent_node=pc)
+                self.scene.add_node(n)  # , parent_node=pc)
             nodes.append(n)
         return nodes
