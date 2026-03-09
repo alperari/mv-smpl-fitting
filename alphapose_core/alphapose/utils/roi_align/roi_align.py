@@ -3,7 +3,10 @@ from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 from torch.nn.modules.utils import _pair
 
-from . import roi_align_cuda
+try:
+    from . import roi_align_cuda
+except ImportError:
+    roi_align_cuda = None
 
 
 class RoIAlignFunction(Function):
@@ -21,11 +24,13 @@ class RoIAlignFunction(Function):
         num_rois = rois.size(0)
 
         output = features.new_zeros(num_rois, num_channels, out_h, out_w)
-        if features.is_cuda:
+        if roi_align_cuda is not None and features.is_cuda:
             roi_align_cuda.forward(features, rois, out_h, out_w, spatial_scale,
                                    sample_num, output)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(
+                'Custom roi_align_cuda extension is unavailable. '
+                'Use RoIAlign(use_torchvision=True) fallback instead.')
 
         return output
 
@@ -71,7 +76,7 @@ class RoIAlign(nn.Module):
         self.use_torchvision = use_torchvision
 
     def forward(self, features, rois):
-        if self.use_torchvision:
+        if self.use_torchvision or roi_align_cuda is None:
             from torchvision.ops import roi_align as tv_roi_align
             return tv_roi_align(features, rois, _pair(self.out_size),
                                 self.spatial_scale, self.sample_num)
