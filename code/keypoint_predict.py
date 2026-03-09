@@ -5,14 +5,22 @@
  @Email       : buzhenhuang@outlook.com
  @Description :
 '''
-from utils.FileLoaders import save_keypoints
-import os
+# Ensure imports from repository root work when running: python code/keypoint_predict.py
 import cv2
+import argparse
+import os
+import sys
+import torch
+from utils.FileLoaders import save_keypoints
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(THIS_DIR)
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+# fmt: off
 from alphapose_core.alphapose_core import AlphaPose_Predictor
 from yolox.yolox import Predictor
-import argparse
-import sys
-sys.path.append('./')
+# fmt: on
 
 IMG_EXTS = ('.jpg', '.jpeg', '.png', '.bmp', '.webp')
 
@@ -26,6 +34,8 @@ def parse_args():
                         help='Output root folder for keypoint json files')
     parser.add_argument('--overlay_output_folder', default='output/alphapose',
                         help='Output root folder for keypoint overlay images')
+    parser.add_argument('--bbox_output_folder', default='output/yolox_bbox',
+                        help='Output root folder for YOLOX bbox overlay images')
     parser.add_argument('--viz', action='store_true',
                         help='Show AlphaPose visualization windows while processing')
     parser.add_argument('--yolox_model',
@@ -41,6 +51,14 @@ def parse_args():
                         help='YOLOX detection threshold')
     parser.add_argument('--alpha_thres', type=float, default=0.1,
                         help='AlphaPose keypoint threshold')
+    parser.add_argument('--device', default='cuda:0',
+                        help='Torch device, e.g. cuda:0, cuda:1, or cpu')
+    parser.add_argument('--pose_batch_size', type=int, default=20,
+                        help='AlphaPose pose batch size; lower this to reduce GPU memory')
+    parser.add_argument('--yolox_input_h', type=int, default=800,
+                        help='YOLOX inference input height')
+    parser.add_argument('--yolox_input_w', type=int, default=1440,
+                        help='YOLOX inference input width')
     return parser.parse_args()
 
 
@@ -51,9 +69,19 @@ def main():
         raise FileNotFoundError(
             'Input folder does not exist: {}'.format(args.input_folder))
 
-    yolox_predictor = Predictor(args.yolox_model, args.yolox_thres)
+    if args.device.startswith('cuda') and not torch.cuda.is_available():
+        raise RuntimeError('CUDA device requested but torch.cuda.is_available() is False')
+
+    device = torch.device(args.device)
+    print('Using device: {}'.format(device))
+
+    yolox_predictor = Predictor(args.yolox_model, args.yolox_thres, device=device)
+    yolox_predictor.test_size = (args.yolox_input_h, args.yolox_input_w)
     alpha_predictor = AlphaPose_Predictor(
-        args.alpha_config, args.alpha_checkpoint, args.alpha_thres)
+        args.alpha_config, args.alpha_checkpoint, args.alpha_thres, device=device)
+    alpha_predictor.posebatch = max(1, args.pose_batch_size)
+    print('AlphaPose posebatch: {}'.format(alpha_predictor.posebatch))
+    print('YOLOX input size: {}x{}'.format(args.yolox_input_h, args.yolox_input_w))
 
     seqs = sorted(os.listdir(args.input_folder))
     for seq in seqs:
@@ -79,12 +107,20 @@ def main():
                     print('Skip unreadable image: {}'.format(img_path))
                     continue
 
-                results, _ = yolox_predictor.predict(img, viz=False)
+                results, bbox_img = yolox_predictor.predict(img, viz=args.viz)
                 bboxes = results.get('bbox', []) if isinstance(
                     results, dict) else []
                 if len(bboxes) == 0:
                     print('No person detected, skip: {}'.format(img_path))
                     continue
+
+                stem, _ = os.path.splitext(name)
+                bbox_path = os.path.join(
+                    args.bbox_output_folder, seq, camera,
+                    stem + '_bbox.jpg')
+                os.makedirs(os.path.dirname(bbox_path), exist_ok=True)
+                cv2.imwrite(bbox_path, bbox_img)
+                print('Save bbox overlay: {}'.format(bbox_path))
 
                 pose = alpha_predictor.predict(img, bboxes)[:1]
                 if len(pose) == 0:
@@ -95,7 +131,6 @@ def main():
                 result_img = alpha_predictor.visualize(
                     img, pose, format='coco17', viz=args.viz)
 
-                stem, _ = os.path.splitext(name)
                 keypoint_path = os.path.join(
                     args.keypoint_output_folder, seq, camera,
                     stem + '_keypoints.json')
@@ -105,7 +140,7 @@ def main():
 
                 overlay_path = os.path.join(
                     args.overlay_output_folder, seq, camera,
-                    stem + '_overlay.jpg')
+                    stem + '_keypoints_overlay.jpg')
                 os.makedirs(os.path.dirname(overlay_path), exist_ok=True)
                 cv2.imwrite(overlay_path, result_img)
                 print('Save overlay: {}'.format(overlay_path))
