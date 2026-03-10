@@ -3,7 +3,7 @@
  @EditTime    : 2023-02-03 13:42:18
  @Author      : Buzhen Huang
  @Email       : hbz@seu.edu.cn
- @Description : 
+ @Description :
 '''
 import torch
 import torch.nn as nn
@@ -14,7 +14,19 @@ from yolox.utils import fuse_model, get_model_info, postprocess
 from yolox.utils.visualize import plot_tracking, vis_bboxes
 from yolox.utils.timer import Timer
 from yolox.data.data_augment import preproc
-from utils.module_utils import vis_img
+
+
+def vis_img(name, im):
+    ratiox = 800 / int(im.shape[0])
+    ratioy = 800 / int(im.shape[1])
+    ratio = ratiox if ratiox < ratioy else ratioy
+
+    cv2.namedWindow(name, 0)
+    cv2.resizeWindow(name, int(im.shape[1] * ratio), int(im.shape[0] * ratio))
+    if im.max() > 1:
+        im = im / 255.0
+    cv2.imshow(name, im)
+
 
 class Predictor(object):
     def __init__(
@@ -34,7 +46,7 @@ class Predictor(object):
         self.nmsthre = 0.7
         self.test_size = (800, 1440)
         self.device = device
-        
+
         self.rgb_means = (0.485, 0.456, 0.406)
         self.std = (0.229, 0.224, 0.225)
 
@@ -51,21 +63,23 @@ class Predictor(object):
             ratio = img_info["ratio"]
             output = outputs[0].cpu().numpy()
 
-            # delete bbox which is not a person 
-            cls = output[:,6]
+            # delete bbox which is not a person
+            cls = output[:, 6]
             not_person_idx = np.where(cls != 0)
             output = np.delete(output, not_person_idx, axis=0)
 
             # delete low confidence
             scores = output[:, 4] * output[:, 5]
-            ## set thresthold
+            # set thresthold
             low_conf_1 = np.where(scores < 0.46)[0]
             output_1 = np.delete(output, low_conf_1, axis=0)
-            low_conf_2 = np.union1d(np.where(scores > 0.46)[0], np.where(scores < self.thresthold[0])[0])
+            low_conf_2 = np.union1d(np.where(scores > 0.46)[
+                                    0], np.where(scores < self.thresthold[0])[0])
             output_2 = np.delete(output, low_conf_2, axis=0)
             output = np.vstack((output_1, output_2))
 
-            result_image = self.visual(torch.tensor(output), img_info, self.thresthold)
+            result_image = self.visual(torch.tensor(
+                output), img_info, self.thresthold)
 
             bboxes = output[:, 0:4]
             bboxes /= ratio
@@ -113,7 +127,7 @@ class Predictor(object):
             outputs = postprocess(
                 outputs, self.num_classes, self.confthre, self.nmsthre
             )
-            #logger.info("Infer time: {:.4f}s".format(time.time() - t0))
+            # logger.info("Infer time: {:.4f}s".format(time.time() - t0))
         return outputs, img_info
 
     def model_inference(self, img, img_info):
@@ -130,17 +144,18 @@ class Predictor(object):
             ratio = img_info["ratio"]
             output = outputs[0].cpu().numpy()
 
-            # delete bbox which is not a person 
-            cls = output[:,6]
+            # delete bbox which is not a person
+            cls = output[:, 6]
             not_person_idx = np.where(cls != 0)
             output = np.delete(output, not_person_idx, axis=0)
 
             # delete low confidence
             scores = output[:, 4] * output[:, 5]
-            ## set thresthold
+            # set thresthold
             low_conf_1 = np.where(scores < 0.46)[0]
             output_1 = np.delete(output, low_conf_1, axis=0)
-            low_conf_2 = np.union1d(np.where(scores > 0.46)[0], np.where(scores < self.thresthold[0])[0])
+            low_conf_2 = np.union1d(np.where(scores > 0.46)[
+                                    0], np.where(scores < self.thresthold[0])[0])
             output_2 = np.delete(output, low_conf_2, axis=0)
             output = np.vstack((output_1, output_2))
 
@@ -173,8 +188,10 @@ class Predictor(object):
 
         if getattr(self, "model", None) is None:
             in_channels = [256, 512, 1024]
-            backbone = YOLOPAFPN(self.depth, self.width, in_channels=in_channels)
-            head = YOLOXHead(self.num_classes, self.width, in_channels=in_channels)
+            backbone = YOLOPAFPN(self.depth, self.width,
+                                 in_channels=in_channels)
+            head = YOLOXHead(self.num_classes, self.width,
+                             in_channels=in_channels)
             self.model = YOLOX(backbone, head)
 
         self.model.apply(init_yolo)
@@ -182,7 +199,8 @@ class Predictor(object):
 
         self.model.to(torch.device('cuda'))
 
-        print("Model Summary: {}".format(get_model_info(self.model, (800, 1440))))
+        print("Model Summary: {}".format(
+            get_model_info(self.model, (800, 1440))))
         self.model.eval()
 
         trt = False
@@ -222,5 +240,3 @@ class Predictor(object):
 
         vis_res = vis_bboxes(img, bboxes, scores, cls, cls_conf)
         return vis_res
-
-

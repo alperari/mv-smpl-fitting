@@ -4,7 +4,7 @@
  @EditTime    : 2021-09-19 21:46:57
  @Author      : Buzhen Huang
  @Email       : buzhenhuang@outlook.com
- @Description : 
+ @Description :
 '''
 import sys
 import os
@@ -18,6 +18,7 @@ from utils.utils import save_results, change
 # os.environ["PYOPENGL_PLATFORM"] = "egl" #osmesa egl
 
 keyps = []
+
 
 def main(**args):
     global keyps
@@ -74,8 +75,10 @@ def main(**args):
 
         # init guess
         if setting['seq_start'] or not args.get('is_seq'):
+            print("Running init_guess for the first frame of the sequence...")
             init_guess(setting, data, use_torso=True, **args)  # 运行这个
         else:
+            print("Loading init_guess results from last frame...")
             load_init(setting, data, results, use_torso=True, **args)
 
         fix_params(
@@ -92,6 +95,7 @@ def main(**args):
     time_msg = time.strftime('%H hours, %M minutes, %S seconds',
                              time.gmtime(elapsed))
     print('Processing the data took: {}'.format(time_msg))
+
 
 if __name__ == "__main__":
 

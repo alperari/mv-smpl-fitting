@@ -8,6 +8,7 @@ __pycache__/
 
 output/
 data/
+data_*/
 pretrain_model/
 models/smpl/*.pkl
 
