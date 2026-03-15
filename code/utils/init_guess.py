@@ -3,7 +3,7 @@
  @EditTime    : 2021-09-19 21:47:56
  @Author      : Buzhen Huang
  @Email       : hbz@seu.edu.cn
- @Description : 
+ @Description :
 '''
 
 from utils.recompute3D import recompute3D
@@ -89,7 +89,28 @@ def init_guess(setting, data, use_torso=False, **kwargs):
         joints3d = joints3d[[5, 6, 11, 12]]
         joints = joints[[5, 6, 11, 12]]
     # get transformation
-    rot, trans, scale = umeyama(joints, joints3d, est_scale)
+    umeyama_out = umeyama(joints, joints3d, est_scale)
+    if isinstance(umeyama_out, tuple):
+        if len(umeyama_out) >= 3:
+            rot, trans, scale = umeyama_out[:3]
+        elif len(umeyama_out) == 2:
+            rot, trans = umeyama_out
+            scale = 1.0
+        else:
+            raise ValueError(
+                'Unexpected umeyama tuple output: {}'.format(umeyama_out))
+    elif isinstance(umeyama_out, np.ndarray) and umeyama_out.shape == (4, 4):
+        # Fallback for implementations that return a homogeneous transform.
+        rot_scaled = umeyama_out[:3, :3]
+        scale = np.cbrt(np.linalg.det(rot_scaled)) if est_scale else 1.0
+        if np.abs(scale) < 1e-8:
+            scale = 1.0
+        rot = rot_scaled / scale
+        trans = umeyama_out[:3, 3]
+    else:
+        raise ValueError(
+            'Unexpected umeyama return type: {}'.format(type(umeyama_out)))
+
     rot = cv2.Rodrigues(rot)[0]
     # apply to model
     if est_scale:
@@ -140,6 +161,8 @@ def load_init(setting, data, results, use_torso=False, **kwargs):
     device = setting['device']
     # if the loss of last frame is too large, we use init_guess to get initial value
     if results['loss'] > 5000:
+        print(
+            "Last frame fitting loss is too large ({:.2f}), re-running init_guess for this frame...".format(results['loss']))
         init_guess(setting, data, use_torso=use_torso, **kwargs)
         setting['seq_start'] = True
         return
@@ -154,7 +177,7 @@ def load_init(setting, data, results, use_torso=False, **kwargs):
     else:
         # gmm prior, to do...
         pass
-        #init_pose = torch.tensor(results['body_pose'], dtype=dtype)
+        # init_pose = torch.tensor(results['body_pose'], dtype=dtype)
 
     # initial value
     new_params = defaultdict(global_orient=init_r,
