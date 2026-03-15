@@ -902,6 +902,7 @@ def save_results(setting, data, result,
     result_fn = osp.join(curr_result_fn, '{:03d}.pkl'.format(person_id))
     with open(result_fn, 'wb') as result_file:
         pickle.dump(result, result_file, protocol=2)
+        print("Saved result to: ", result_fn)
 
     if save_meshes or save_images:
         model_output = model(
@@ -923,6 +924,7 @@ def save_results(setting, data, result,
             project_to_img(
                 body_joints, verts, model.faces, keypoints,
                 camera, img_path, renderList, -1, viz=False, inter=False, path=curr_image_fn, points_to=points_to)
+            print("Saved image to: ", curr_image_fn)
 
         if save_meshes:
             curr_mesh_fn = osp.join(setting['mesh_folder'], serial, fn)
@@ -932,6 +934,7 @@ def save_results(setting, data, result,
             out_mesh = trimesh.Trimesh(
                 verts.detach().squeeze().cpu().numpy(), model.faces, process=False)
             out_mesh.export(mesh_fn)
+            print("Saved mesh to: ", mesh_fn)
 
 
 class Renderer:
