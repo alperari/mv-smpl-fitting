@@ -3,7 +3,7 @@
  @EditTime    : 2021-09-19 21:48:01
  @Author      : Buzhen Huang
  @Email       : hbz@seu.edu.cn
- @Description : 
+ @Description :
 '''
 
 from __future__ import absolute_import
@@ -34,25 +34,26 @@ from optimizers import optim_factory
 
 from utils import fitting
 
+
 def non_linear_solver(
-                    setting,
-                    data,
-                    batch_size=1,
-                    data_weights=None,
-                    body_pose_prior_weights=None,
-                    shape_weights=None,
-                    coll_loss_weights=None,
-                    use_joints_conf=False,
-                    use_3d=False,
-                    rho=100,
-                    interpenetration=False,
-                    loss_type='smplify',
-                    visualize=False,
-                    use_vposer=True,
-                    interactive=True,
-                    use_cuda=True,
-                    is_seq=False,
-                    **kwargs):
+        setting,
+        data,
+        batch_size=1,
+        data_weights=None,
+        body_pose_prior_weights=None,
+        shape_weights=None,
+        coll_loss_weights=None,
+        use_joints_conf=False,
+        use_3d=False,
+        rho=100,
+        interpenetration=False,
+        loss_type='smplify',
+        visualize=False,
+        use_vposer=True,
+        interactive=True,
+        use_cuda=True,
+        is_seq=False,
+        **kwargs):
     assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
 
     views = setting['views']
@@ -68,27 +69,39 @@ def non_linear_solver(
     if data['3d_joint'] is None:
         use_3d = False
 
+    if interactive:
+        print('Solver start | serial={} frame={} | views={} | use_3d={} | is_seq={} | seq_start={}'.format(
+            data.get('serial', 'unknown'), data.get('fn', 'unknown'), views, use_3d, is_seq, seq_start))
+
     assert (len(data_weights) ==
             len(body_pose_prior_weights) and len(shape_weights) ==
             len(body_pose_prior_weights) and len(coll_loss_weights) ==
             len(body_pose_prior_weights)), "Number of weight must match"
-    
+
     # process keypoints
     keypoint_data = torch.tensor(keypoints, dtype=dtype)
     gt_joints = keypoint_data[:, :, :, :2]
+    if interactive:
+        print('Keypoint tensor shape: {} | GT joint tensor shape: {}'.format(
+            tuple(keypoint_data.shape), tuple(gt_joints.shape)))
     if use_joints_conf:
         joints_conf = []
         for v in keypoint_data:
             conf = v[:, :, 2].reshape(1, -1)
             conf = conf.to(device=device, dtype=dtype)
             joints_conf.append(conf)
+        if interactive and len(joints_conf) > 0:
+            conf_cat = torch.cat(joints_conf, dim=1)
+            print('Keypoint confidence stats | min={:.4f} mean={:.4f} max={:.4f}'.format(
+                conf_cat.min().item(), conf_cat.mean().item(), conf_cat.max().item()))
 
-    if use_3d: #:
+    if use_3d:  # :
         joints3d = data['3d_joint'][0]
         joints_data = torch.tensor(joints3d, dtype=dtype)
         gt_joints3d = joints_data[:, :3]
         if use_joints_conf:
-            joints3d_conf = joints_data[:, 3].reshape(1, -1).to(device=device, dtype=dtype)
+            joints3d_conf = joints_data[:, 3].reshape(
+                1, -1).to(device=device, dtype=dtype)
             if not kwargs.get('use_hip'):
                 joints3d_conf[0][11] = 0
                 joints3d_conf[0][12] = 0
@@ -143,11 +156,14 @@ def non_linear_solver(
     loss = loss.to(device=device)
 
     monitor = fitting.FittingMonitor(
-            batch_size=batch_size, visualize=visualize, **kwargs)
+        batch_size=batch_size, visualize=visualize, **kwargs)
 
     H, W, _ = data['img'][0].shape
 
     data_weight = 500 / H
+    if interactive:
+        print('Image size={}x{} | derived data_weight={:.6f}'.format(
+            H, W, data_weight))
 
     # Step 1: Optimize the full model
     final_loss_val = 0
@@ -157,9 +173,20 @@ def non_linear_solver(
         # pass stage1 and stage2 if it is a sequence
         if not seq_start and is_seq:
             if opt_idx < 2:
+                if interactive:
+                    tqdm.write(
+                        'Skipping stage {:03d} for sequence continuation'.format(opt_idx))
                 continue
             elif opt_idx == 2:
                 curr_weights['body_pose_weight'] *= 0.15
+
+        if interactive:
+            tqdm.write('Stage {:03d} weights | data={:.6f} body_pose={:.6f} shape={:.6f} coll={}'.format(
+                opt_idx,
+                float(curr_weights.get('data_weight', -1.0)),
+                float(curr_weights.get('body_pose_weight', -1.0)),
+                float(curr_weights.get('shape_weight', -1.0)),
+                float(curr_weights.get('coll_loss_weight', -1.0)) if 'coll_loss_weight' in curr_weights else 'N/A'))
 
         body_params = list(model.parameters())
 
@@ -199,7 +226,8 @@ def non_linear_solver(
             body_optimizer,
             closure, final_params,
             model,
-            pose_embedding=pose_embedding, vposer=vposer, camera=camera, img_path=data['img_path'],
+            pose_embedding=pose_embedding, vposer=vposer, camera=camera, img_path=data[
+                'img_path'],
             use_vposer=use_vposer)
 
         if interactive:
@@ -209,13 +237,15 @@ def non_linear_solver(
             if interactive:
                 tqdm.write('Stage {:03d} done after {:.4f} seconds'.format(
                     opt_idx, elapsed))
+                tqdm.write('Stage {:03d} final loss: {:.6f}'.format(
+                    opt_idx, float(final_loss_val)))
 
     if setting['adjustment']:
-        ## 1. 每个视角的 3D投影 和 2D关键点 可视化，调整2D关键点
-        ## 2. 根据新的2D关键点 再次优化一轮
-        ## 3. 调整 3D优化结果，增加reset选项
+        # 1. 每个视角的 3D投影 和 2D关键点 可视化，调整2D关键点
+        # 2. 根据新的2D关键点 再次优化一轮
+        # 3. 调整 3D优化结果，增加reset选项
         result = {key: val.detach().cpu().numpy()
-                for key, val in model.named_parameters()}
+                  for key, val in model.named_parameters()}
         result['pose_embedding'] = pose_embedding
         from utils.utils import changeNew
         changeNew(data['img_path'], data['keypoints'], result, setting)
@@ -259,7 +289,8 @@ def non_linear_solver(
             body_optimizer,
             closure, final_params,
             model,
-            pose_embedding=pose_embedding, vposer=vposer, camera=camera, img_path=data['img_path'],
+            pose_embedding=pose_embedding, vposer=vposer, camera=camera, img_path=data[
+                'img_path'],
             use_vposer=use_vposer)
         if interactive:
             if use_cuda and torch.cuda.is_available():
@@ -268,8 +299,6 @@ def non_linear_solver(
             if interactive:
                 tqdm.write('Stage {:03d} done after {:.4f} seconds'.format(
                     opt_idx, elapsed))
-
-
 
     if interactive:
         if use_cuda and torch.cuda.is_available():
@@ -282,7 +311,7 @@ def non_linear_solver(
 
         # Get the result of the fitting process
         result = {key: val.detach().cpu().numpy()
-                        for key, val in model.named_parameters()}
+                  for key, val in model.named_parameters()}
         result['loss'] = final_loss_val
         result['pose_embedding'] = pose_embedding
     return result

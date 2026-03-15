@@ -110,10 +110,19 @@ class FittingMonitor():
                 loss_rel_change = utils.rel_change(prev_loss, loss.item())
 
                 if loss_rel_change <= self.ftol:
+                    # Explanation:
+                    # If the relative change between previous and current loss is less than or equal to ftol, it indicates that the optimization has converged to a local minimum or plateau.
+                    print('Stopping at iter {} due to ftol | rel_change={:.6e} <= ftol={:.6e}'.format(
+                        n, loss_rel_change, self.ftol))
                     break
 
             if all([torch.abs(var.grad.view(-1).max()).item() < self.gtol
                     for var in params if var.grad is not None]):
+                # Explanation:
+                # If the maximum absolute value of the gradients of all parameters is less than gtol, it indicates that the optimization has converged to a local minimum or plateau.
+                # In such cases, further iterations may not lead to significant improvements in the loss function, and it is reasonable to stop the optimization process to save computational resources.
+                print('Stopping at iter {} due to gtol | all grad max < {:.6e}'.format(
+                    n, self.gtol))
                 break
 
             if self.visualize and n % self.summary_steps == 0:
@@ -138,7 +147,8 @@ class FittingMonitor():
                 #                     body_model.faces)
 
             prev_loss = loss.item()
-            print('stage fitting loss: ', prev_loss)
+            print('iter {:03d} | stage fitting loss: {:.6f}'.format(
+                n, prev_loss))
         return prev_loss
 
     def create_fitting_closure(self,
@@ -361,12 +371,12 @@ class SMPLifyLoss(nn.Module):
             with torch.no_grad():
                 vertices_centered = vertices - boxes_center
                 vertices_centered_scaled = vertices_centered / boxes_scale
-                assert(vertices_centered_scaled.min() >= -1)
-                assert(vertices_centered_scaled.max() <= 1)
-                assert(vertices.shape[0] == 1)
+                assert (vertices_centered_scaled.min() >= -1)
+                assert (vertices_centered_scaled.max() <= 1)
+                assert (vertices.shape[0] == 1)
                 phi = self.sdf(body_model_faces.reshape(
                     1, -1, 3).to(torch.int32), vertices_centered_scaled, grid_size=128)
-                assert(phi.min() >= 0)
+                assert (phi.min() >= 0)
 
             valid_people = vertices.shape[0]
             # Convert vertices to the format expected by grid_sample

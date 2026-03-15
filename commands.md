@@ -30,8 +30,8 @@ python generate_single_cam_params.py \
 xvfb-run -s "-screen 0 1280x1024x24" \
  python code/main.py \
  --config cfg_files/fit_smpl.yaml \
- --cam_param data_steve_4_view/cam_TODO.txt \
- --data_folder data_steve_4_view
+ --cam_param data_alp_4_view_1_cam/cam.txt \
+ --data_folder data_alp_4_view_1_cam
 
 ### With sequential mode inference
 
@@ -40,15 +40,15 @@ python code/main.py \
  --config cfg_files/fit_smpl.yaml \
  --data_folder data_steve_4_view_seq \
  --cam_param data_steve_4_view_seq/cam.txt \
- --is_seq true
+ --is_seq true \
 
 # Keypoint detection with AlphaPose
 
 python code/keypoint_predict.py \
- --input_folder data_steve_4_view/images \
- --keypoint_output_folder data_steve_4_view/keypoints \
- --overlay_output_folder data_steve_4_view/keypoint_overlays \
- --bbox_output_folder data_steve_4_view/bbox_overlays \
+ --input_folder data_alp_1_view_frontal/images \
+ --keypoint_output_folder data_alp_1_view_frontal/keypoints \
+ --overlay_output_folder data_alp_1_view_frontal/keypoint_overlays \
+ --bbox_output_folder data_alp_1_view_frontal/bbox_overlays \
  --yolox_model ./pretrained/yolox_data/bytetrack_x_mot17.pth.tar \
  --alpha_checkpoint ./pretrained/alphapose_data/halpe26_fast_res50_256x192.pth
 
@@ -64,3 +64,39 @@ python convert_camera_calibration.py \
 python generate_single_cam_params.py \
  --image data_steve_4_view/images/scene1/iphone1/P1_back.jpg \
  --output data_steve_4_view/cam.txt
+
+
+### AlphaPose HALPE26 keypoints
+ //26 body keypoints
+    {0,  "Nose"},
+    {1,  "LEye"},
+    {2,  "REye"},
+    {3,  "LEar"},
+    {4,  "REar"},
+    {5,  "LShoulder"},
+    {6,  "RShoulder"},
+    {7,  "LElbow"},
+    {8,  "RElbow"},
+    {9,  "LWrist"},
+    {10, "RWrist"},
+    {11, "LHip"},
+    {12, "RHip"},
+    {13, "LKnee"},
+    {14, "Rknee"},
+    {15, "LAnkle"},
+    {16, "RAnkle"},
+    {17,  "Head"},
+    {18,  "Neck"},
+    {19,  "Hip"},
+    {20, "LBigToe"},
+    {21, "RBigToe"},
+    {22, "LSmallToe"},
+    {23, "RSmallToe"},
+    {24, "LHeel"},
+    {25, "RHeel"},
+    //face
+    {26-93, 68 Face Keypoints}
+    //left hand
+    {94-114, 21 Left Hand Keypoints}
+    //right hand
+    {115-135, 21 Right Hand Keypoints}
