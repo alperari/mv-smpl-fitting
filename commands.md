@@ -38,17 +38,17 @@ xvfb-run -s "-screen 0 1280x1024x24" \
 xvfb-run -s "-screen 0 1280x1024x24" \
 python code/main.py \
  --config cfg_files/fit_smpl.yaml \
- --data_folder data_steve_4_view_seq \
- --cam_param data_steve_4_view_seq/cam.txt \
+ --data_folder data_alp_4_view \
+ --cam_param data_alp_4_view/cam.txt \
  --is_seq true \
 
 # Keypoint detection with AlphaPose
 
 python code/keypoint_predict.py \
- --input_folder data_alp_1_view_frontal/images \
- --keypoint_output_folder data_alp_1_view_frontal/keypoints \
- --overlay_output_folder data_alp_1_view_frontal/keypoint_overlays \
- --bbox_output_folder data_alp_1_view_frontal/bbox_overlays \
+ --input_folder data_steve_lab_2_view/images \
+ --keypoint_output_folder data_steve_lab_2_view/keypoints \
+ --overlay_output_folder data_steve_lab_2_view/keypoint_overlays \
+ --bbox_output_folder data_steve_lab_2_view/bbox_overlays \
  --yolox_model ./pretrained/yolox_data/bytetrack_x_mot17.pth.tar \
  --alpha_checkpoint ./pretrained/alphapose_data/halpe26_fast_res50_256x192.pth
 
