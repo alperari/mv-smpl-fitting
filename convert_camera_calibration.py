@@ -1,191 +1,93 @@
-#!/usr/bin/env python3
-"""Convert Skeletool-style camera.calibration into MvSMPLfitting cam.txt format.
-
-Input format example block:
-  name          0
-    intrinsic   1497.693 0 1024.704 0 ... 0 0 0 1
-    extrinsic   0.965... 0.004... ... 0 0 0 1
-
-Output format (one block per selected camera):
-  <new_index>
-  fx 0 cx
-  0 fy cy
-  0 0 1
-  0 0
-  r11 r12 r13 t1
-  r21 r22 r23 t2
-  r31 r32 r33 t3
-"""
-
-import argparse
-import os
-import os.path as osp
-import re
-from typing import Dict, List
+import xml.etree.ElementTree as ET
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Convert camera.calibration to MvSMPLfitting cam.txt"
-    )
-    parser.add_argument(
-        "--input",
-        required=True,
-        help="Path to source camera.calibration file",
-    )
-    parser.add_argument(
-        "--output",
-        required=True,
-        help="Path to output cam.txt",
-    )
-    parser.add_argument(
-        "--camera_ids",
-        default="",
-        help=(
-            "Comma-separated source camera IDs to export, e.g. '0,2,7,8'. "
-            "If empty, exports all cameras in source order."
-        ),
-    )
-    parser.add_argument(
-        "--scene_dir",
-        default="",
-        help=(
-            "Optional scene folder (e.g. data_x/images/scene_1). "
-            "If set and --camera_ids is empty, IDs are inferred from cam* folders."
-        ),
-    )
-    return parser.parse_args()
+def convert_xcp_to_camtxt(xcp_filepath, output_filepath):
+    # Parse the XML file
+    try:
+        tree = ET.parse(xcp_filepath)
+        root = tree.getroot()
+    except Exception as e:
+        print(f"Error reading {xcp_filepath}: {e}")
+        return
 
+    output_lines = []
+    camera_index = 0
 
-def _to_float_list(parts: List[str]) -> List[float]:
-    return [float(x) for x in parts]
+    # Iterate through all cameras in the file
+    for camera in root.findall('Camera'):
+        # Only process the specific Blackfly S RGB cameras
+        display_type = camera.get('DISPLAY_TYPE', '')
+        if display_type == "VideoInputDevice:Blackfly S BFS-U3-23S3C":
 
+            # Find the KeyFrame tag which contains the actual calibration math
+            keyframes = camera.find('KeyFrames')
+            if keyframes is not None:
+                keyframe = keyframes.find('KeyFrame')
+                if keyframe is not None:
 
-def parse_calibration_file(path: str) -> Dict[int, Dict[str, List[float]]]:
-    cameras: Dict[int, Dict[str, List[float]]] = {}
-    current_id = None
+                    # --- 1. Extract Intrinsics ---
+                    focal_length = float(keyframe.get('FOCAL_LENGTH'))
+                    cx, cy = map(float, keyframe.get(
+                        'PRINCIPAL_POINT').split())
 
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
-        for raw in f:
-            line = raw.strip()
-            if not line:
-                continue
+                    # Construct K matrix
+                    K = np.array([
+                        [focal_length, 0, cx],
+                        [0, focal_length, cy],
+                        [0, 0, 1]
+                    ])
 
-            if line.startswith("name"):
-                # Supports: "name          0"
-                parts = line.split()
-                if len(parts) < 2:
-                    raise ValueError(f"Malformed camera name line: {line}")
-                current_id = int(parts[-1])
-                cameras[current_id] = {}
-                continue
+                    # --- 2. Extract Extrinsics ---
+                    # Position (C) -> Convert from mm to meters
+                    tx, ty, tz = map(float, keyframe.get('POSITION').split())
+                    C = np.array([tx, ty, tz]) / 1000.0
 
-            if current_id is None:
-                continue
+                    # Orientation (Quaternion)
+                    qx, qy, qz, qw = map(
+                        float, keyframe.get('ORIENTATION').split())
 
-            if line.startswith("intrinsic"):
-                vals = _to_float_list(line.split()[1:])
-                if len(vals) != 16:
-                    raise ValueError(
-                        f"Camera {current_id}: expected 16 intrinsic values, got {len(vals)}"
-                    )
-                cameras[current_id]["intrinsic"] = vals
-            elif line.startswith("extrinsic"):
-                vals = _to_float_list(line.split()[1:])
-                if len(vals) != 16:
-                    raise ValueError(
-                        f"Camera {current_id}: expected 16 extrinsic values, got {len(vals)}"
-                    )
-                cameras[current_id]["extrinsic"] = vals
+                    # Convert Quaternion to 3x3 Rotation Matrix (R)
+                    rot = R.from_quat([qx, qy, qz, qw])
+                    R_mat = rot.as_matrix()
 
-    missing = [
-        cid for cid, data in cameras.items() if "intrinsic" not in data or "extrinsic" not in data
-    ]
-    if missing:
-        raise ValueError(f"Missing intrinsic/extrinsic in cameras: {missing}")
+                    # Calculate Translation vector (t) for OpenCV: t = -R * C
+                    t = -R_mat @ C
 
-    return cameras
+                    # --- 3. Format the Output ---
+                    output_lines.append(f"{camera_index}")
 
+                    # K Matrix formatting
+                    output_lines.append(f"{K[0, 0]} {K[0, 1]} {K[0, 2]}")
+                    output_lines.append(f"{K[1, 0]} {K[1, 1]} {K[1, 2]}")
+                    output_lines.append(f"{K[2, 0]} {K[2, 1]} {K[2, 2]}")
 
-def infer_ids_from_scene_dir(scene_dir: str) -> List[int]:
-    if not osp.isdir(scene_dir):
-        raise FileNotFoundError(f"scene_dir does not exist: {scene_dir}")
+                    # Distortion formatting (hardcoded to 0 0 based on your example)
+                    output_lines.append("0 0")
 
-    ids = []
-    for name in sorted(os.listdir(scene_dir)):
-        # Expected folder names like cam0, cam2, Camera00, etc.
-        match = re.search(r"(\d+)$", name)
-        if match:
-            ids.append(int(match.group(1)))
+                    # R Matrix and t Vector formatting
+                    output_lines.append(
+                        f"{R_mat[0, 0]} {R_mat[0, 1]} {R_mat[0, 2]} {t[0]}")
+                    output_lines.append(
+                        f"{R_mat[1, 0]} {R_mat[1, 1]} {R_mat[1, 2]} {t[1]}")
+                    output_lines.append(
+                        f"{R_mat[2, 0]} {R_mat[2, 1]} {R_mat[2, 2]} {t[2]}")
+                    output_lines.append("")  # Empty line between cameras
 
-    if not ids:
-        raise ValueError(
-            f"Could not infer camera IDs from scene_dir: {scene_dir}"
-        )
-    return ids
+                    camera_index += 1
 
-
-def format_num(x: float) -> str:
-    return f"{x:.12g}"
-
-
-def make_output_block(new_idx: int, intrinsic16: List[float], extrinsic16: List[float]) -> str:
-    # 4x4 row-major matrices
-    K = [intrinsic16[0:4], intrinsic16[4:8],
-         intrinsic16[8:12], intrinsic16[12:16]]
-    E = [extrinsic16[0:4], extrinsic16[4:8],
-         extrinsic16[8:12], extrinsic16[12:16]]
-
-    lines = [
-        str(new_idx),
-        f"{format_num(K[0][0])} {format_num(K[0][1])} {format_num(K[0][2])}",
-        f"{format_num(K[1][0])} {format_num(K[1][1])} {format_num(K[1][2])}",
-        f"{format_num(K[2][0])} {format_num(K[2][1])} {format_num(K[2][2])}",
-        "0 0",
-        f"{format_num(E[0][0])} {format_num(E[0][1])} {format_num(E[0][2])} {format_num(E[0][3])}",
-        f"{format_num(E[1][0])} {format_num(E[1][1])} {format_num(E[1][2])} {format_num(E[1][3])}",
-        f"{format_num(E[2][0])} {format_num(E[2][1])} {format_num(E[2][2])} {format_num(E[2][3])}",
-        "",
-    ]
-    return "\n".join(lines)
-
-
-def main() -> None:
-    args = parse_args()
-
-    cameras = parse_calibration_file(args.input)
-
-    selected_ids: List[int]
-    if args.camera_ids.strip():
-        selected_ids = [int(x.strip())
-                        for x in args.camera_ids.split(",") if x.strip()]
-    elif args.scene_dir.strip():
-        selected_ids = infer_ids_from_scene_dir(args.scene_dir)
+    # Write the formatted data to the text file
+    if len(output_lines) > 0:
+        with open(output_filepath, 'w') as f:
+            f.write("\n".join(output_lines))
+        print(f"Successfully converted {camera_index} Blackfly S cameras.")
+        print(f"Saved to: {output_filepath}")
     else:
-        selected_ids = sorted(cameras.keys())
-
-    for cid in selected_ids:
-        if cid not in cameras:
-            raise KeyError(
-                f"Requested camera id {cid} not found in input file")
-
-    out_blocks = []
-    for new_idx, src_id in enumerate(selected_ids):
-        cam = cameras[src_id]
-        out_blocks.append(
-            make_output_block(new_idx, cam["intrinsic"], cam["extrinsic"])
-        )
-
-    out_dir = osp.dirname(args.output)
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-
-    with open(args.output, "w", encoding="utf-8") as f:
-        f.write("\n".join(out_blocks))
-
-    print(f"Wrote {len(selected_ids)} cameras to: {args.output}")
-    print(f"Source camera IDs: {selected_ids}")
+        print("No cameras matching 'VideoInputDevice:Blackfly S BFS-U3-23S3C' were found.")
 
 
-if __name__ == "__main__":
-    main()
+INPUT_FILE = "Vicon_lab_calibration.xcp"
+OUTPUT_FILE = "Vicon_lab_calibration_converted.txt"
+
+convert_xcp_to_camtxt(INPUT_FILE, OUTPUT_FILE)

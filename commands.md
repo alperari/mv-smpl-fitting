@@ -30,8 +30,8 @@ python generate_single_cam_params.py \
 xvfb-run -s "-screen 0 1280x1024x24" \
  python code/main.py \
  --config cfg_files/fit_smpl.yaml \
- --cam_param data_alp_4_view_1_cam/cam.txt \
- --data_folder data_alp_4_view_1_cam
+ --cam_param data_steve_lab_2_view/Vicon_lab_calibration_gemini.txt \
+ --data_folder data_steve_lab_2_view
 
 ### With sequential mode inference
 
@@ -51,6 +51,7 @@ python code/keypoint_predict.py \
  --bbox_output_folder data_steve_lab_2_view/bbox_overlays \
  --yolox_model ./pretrained/yolox_data/bytetrack_x_mot17.pth.tar \
  --alpha_checkpoint ./pretrained/alphapose_data/halpe26_fast_res50_256x192.pth
+
 
 # Convert MPI camera parameters to OpenCV format for AlphaPose
 
@@ -100,3 +101,6 @@ python generate_single_cam_params.py \
     {94-114, 21 Left Hand Keypoints}
     //right hand
     {115-135, 21 Right Hand Keypoints}
+
+### Convert Vicon .xcp camera calibration files to a text format expected by this project
+python conert_camera_calibration.py
