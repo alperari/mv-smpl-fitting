@@ -1,6 +1,8 @@
 import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+import os
+import glob
 
 
 def convert_xcp_to_camtxt(xcp_filepath, output_filepath):
@@ -87,7 +89,16 @@ def convert_xcp_to_camtxt(xcp_filepath, output_filepath):
         print("No cameras matching 'VideoInputDevice:Blackfly S BFS-U3-23S3C' were found.")
 
 
-INPUT_FILE = "Vicon_lab_calibration.xcp"
-OUTPUT_FILE = "Vicon_lab_calibration_converted.txt"
+def find_first_xcp_in_cwd():
+    files = glob.glob("*.xcp")
+    if not files:
+        print("No .xcp files found in current directory.")
+        return None
+    return files[0]
 
-convert_xcp_to_camtxt(INPUT_FILE, OUTPUT_FILE)
+
+if __name__ == "__main__":
+    xcp_file = find_first_xcp_in_cwd()
+    if xcp_file:
+        output_file = "cam_converted.txt"
+        convert_xcp_to_camtxt(xcp_file, output_file)
