@@ -25,6 +25,35 @@ from yolox.yolox import Predictor
 IMG_EXTS = ('.jpg', '.jpeg', '.png', '.bmp', '.webp')
 
 
+def draw_bbox_confidences(img, bboxes, confs):
+    if img is None or bboxes is None or confs is None:
+        return img
+
+    n = min(len(bboxes), len(confs))
+    for i in range(n):
+        x1, y1, x2, y2 = bboxes[i]
+        score = float(confs[i])
+        label = '#{} {:.3f}'.format(i, score)
+
+        x = int(round(x1))
+        y = int(round(y1))
+
+        (tw, th), baseline = cv2.getTextSize(
+            label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
+        y_text_top = max(0, y - th - baseline - 4)
+        y_text_bottom = y_text_top + th + baseline + 4
+        x_text_right = min(img.shape[1] - 1, x + tw + 8)
+
+        cv2.rectangle(
+            img, (max(0, x), y_text_top), (x_text_right, y_text_bottom),
+            (0, 0, 0), -1)
+        cv2.putText(
+            img, label, (max(0, x + 4), y_text_bottom - baseline - 2),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2, cv2.LINE_AA)
+
+    return img
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Run YOLOX + AlphaPose and save keypoints and overlays.')
@@ -70,18 +99,21 @@ def main():
             'Input folder does not exist: {}'.format(args.input_folder))
 
     if args.device.startswith('cuda') and not torch.cuda.is_available():
-        raise RuntimeError('CUDA device requested but torch.cuda.is_available() is False')
+        raise RuntimeError(
+            'CUDA device requested but torch.cuda.is_available() is False')
 
     device = torch.device(args.device)
     print('Using device: {}'.format(device))
 
-    yolox_predictor = Predictor(args.yolox_model, args.yolox_thres, device=device)
+    yolox_predictor = Predictor(
+        args.yolox_model, args.yolox_thres, device=device)
     yolox_predictor.test_size = (args.yolox_input_h, args.yolox_input_w)
     alpha_predictor = AlphaPose_Predictor(
         args.alpha_config, args.alpha_checkpoint, args.alpha_thres, device=device)
     alpha_predictor.posebatch = max(1, args.pose_batch_size)
     print('AlphaPose posebatch: {}'.format(alpha_predictor.posebatch))
-    print('YOLOX input size: {}x{}'.format(args.yolox_input_h, args.yolox_input_w))
+    print('YOLOX input size: {}x{}'.format(
+        args.yolox_input_h, args.yolox_input_w))
 
     seqs = sorted(os.listdir(args.input_folder))
     for seq in seqs:
@@ -108,7 +140,10 @@ def main():
                     continue
 
                 results, bbox_img = yolox_predictor.predict(img, viz=args.viz)
+                print('YOLOX results: {}'.format(results))
                 bboxes = results.get('bbox', []) if isinstance(
+                    results, dict) else []
+                bboxes_conf = results.get('bboxes_conf', []) if isinstance(
                     results, dict) else []
                 if len(bboxes) == 0:
                     print('No person detected, skip: {}'.format(img_path))
@@ -119,6 +154,7 @@ def main():
                     args.bbox_output_folder, seq, camera,
                     stem + '_bbox.jpg')
                 os.makedirs(os.path.dirname(bbox_path), exist_ok=True)
+                bbox_img = draw_bbox_confidences(bbox_img, bboxes, bboxes_conf)
                 cv2.imwrite(bbox_path, bbox_img)
                 print('Save bbox overlay: {}'.format(bbox_path))
 

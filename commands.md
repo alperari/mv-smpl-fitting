@@ -30,25 +30,17 @@ python generate_single_cam_params.py \
 xvfb-run -s "-screen 0 1280x1024x24" \
  python code/main.py \
  --config cfg_files/fit_smpl.yaml \
- --cam_param data_steve_lab_2_view/Vicon_lab_calibration_gemini.txt \
- --data_folder data_steve_lab_2_view
+ --cam_param data_steve_lab_2_view_unclothed_rotated/cam_converted_cam0_rotated.txt \
+ --data_folder data_steve_lab_2_view_unclothed_rotated
 
-### With sequential mode inference
-
-xvfb-run -s "-screen 0 1280x1024x24" \
-python code/main.py \
- --config cfg_files/fit_smpl.yaml \
- --data_folder data_alp_4_view \
- --cam_param data_alp_4_view/cam.txt \
- --is_seq true \
 
 # Keypoint detection with AlphaPose
 
 python code/keypoint_predict.py \
- --input_folder data_steve_lab_2_view/images \
- --keypoint_output_folder data_steve_lab_2_view/keypoints \
- --overlay_output_folder data_steve_lab_2_view/keypoint_overlays \
- --bbox_output_folder data_steve_lab_2_view/bbox_overlays \
+ --input_folder data_steve_lab_2_view_unclothed_rotated/images \
+ --keypoint_output_folder data_steve_lab_2_view_unclothed_rotated/keypoints \
+ --overlay_output_folder data_steve_lab_2_view_unclothed_rotated/keypoint_overlays \
+ --bbox_output_folder data_steve_lab_2_view_unclothed_rotated/bbox_overlays \
  --yolox_model ./pretrained/yolox_data/bytetrack_x_mot17.pth.tar \
  --alpha_checkpoint ./pretrained/alphapose_data/halpe26_fast_res50_256x192.pth
 
