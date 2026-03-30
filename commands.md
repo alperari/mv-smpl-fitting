@@ -30,17 +30,17 @@ python generate_single_cam_params.py \
 xvfb-run -s "-screen 0 1280x1024x24" \
  python code/main.py \
  --config cfg_files/fit_smpl.yaml \
- --cam_param data_steve_lab_2_view_unclothed_rotated/cam_converted_cam0_rotated.txt \
- --data_folder data_steve_lab_2_view_unclothed_rotated
+ --cam_param data_mpi_2_view_s1/cam.txt \
+ --data_folder data_mpi_2_view_s1
 
 
 # Keypoint detection with AlphaPose
 
 python code/keypoint_predict.py \
- --input_folder data_steve_lab_2_view_unclothed_rotated/images \
- --keypoint_output_folder data_steve_lab_2_view_unclothed_rotated/keypoints \
- --overlay_output_folder data_steve_lab_2_view_unclothed_rotated/keypoint_overlays \
- --bbox_output_folder data_steve_lab_2_view_unclothed_rotated/bbox_overlays \
+ --input_folder data_mpi_2_view_s1/images \
+ --keypoint_output_folder data_mpi_2_view_s1/keypoints \
+ --overlay_output_folder data_mpi_2_view_s1/keypoint_overlays \
+ --bbox_output_folder data_mpi_2_view_s1/bbox_overlays \
  --yolox_model ./pretrained/yolox_data/bytetrack_x_mot17.pth.tar \
  --alpha_checkpoint ./pretrained/alphapose_data/halpe26_fast_res50_256x192.pth
 

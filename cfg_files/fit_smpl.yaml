@@ -41,28 +41,20 @@ data_weights:
   - 1.0
   - 1.0
   - 1.0
-  - 1.0
-  - 1.0
 body_pose_prior_weights:
   - 4.04e2
   - 4.04e2
   - 57.4e0
   - 4.78e0
-  - 1.78e0
-  - 1.78e0
 shape_weights:
   - 1.0e2
   - 5.0e1
   - 1.0e1
   - 0.5e1
-  - 0.3e1
-  - 0.1e1
 coll_loss_weights:
   - 0.0
   - 0.0
   - 1000.0
-  - 4500.0
-  - 4500.0
   - 4500.0
 
 # optimization related
