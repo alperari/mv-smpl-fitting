@@ -57,8 +57,8 @@ def init(**kwarg):
     # read gender
     input_gender = kwarg.pop('gender', 'neutral')
     model_type = kwarg.get('model_type')
-    if model_type == 'smpllsp':
-        assert(input_gender == 'neutral'), 'smpl-lsp model support neutral only'
+    # if model_type == 'smpllsp':
+    #     assert(input_gender == 'neutral'), 'smpl-lsp model support neutral only'
 
     if model_type == 'smpllsp':
         # the hip joint of smpl is different with 2D annotation predicted by openpose/alphapose, so we use smpl-lsp model to replace

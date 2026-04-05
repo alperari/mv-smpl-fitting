@@ -30,8 +30,10 @@ python generate_single_cam_params.py \
 xvfb-run -s "-screen 0 1280x1024x24" \
  python code/main.py \
  --config cfg_files/fit_smpl.yaml \
- --cam_param data_mpi_2_view_s1/cam.txt \
- --data_folder data_mpi_2_view_s1
+ --cam_param data_dennis_2v/cam.txt \
+ --data_folder data_dennis_2v \
+ --model_type smpllsp \
+ --gender male
 
 
 # Keypoint detection with AlphaPose
